@@ -9,8 +9,8 @@
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: #0f172a;
-      color: #e2e8f0;
+      background: #f1f5f9;
+      color: #1e293b;
       min-height: 100vh;
     }
 
@@ -51,24 +51,24 @@
     .filter-btn {
       padding: 5px 14px;
       border-radius: 9999px;
-      border: 1px solid #334155;
-      background: transparent;
-      color: #94a3b8;
+      border: 1px solid #cbd5e1;
+      background: #fff;
+      color: #64748b;
       font-size: 12px;
       cursor: pointer;
       transition: all 0.15s;
     }
     .filter-btn:hover, .filter-btn.active {
-      background: #1e293b;
-      color: #f1f5f9;
-      border-color: #475569;
+      background: #e2e8f0;
+      color: #1e293b;
+      border-color: #94a3b8;
     }
-    .filter-btn.active { border-color: #3b82f6; color: #60a5fa; }
+    .filter-btn.active { border-color: #3b82f6; color: #2563eb; background: #eff6ff; }
 
     .refresh-info {
       margin-left: auto;
       font-size: 11px;
-      color: #475569;
+      color: #94a3b8;
     }
 
     .incidents {
@@ -79,14 +79,14 @@
     }
 
     .incident-card {
-      background: #1e293b;
-      border: 1px solid #334155;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
       border-radius: 10px;
       overflow: hidden;
-      transition: border-color 0.15s;
+      transition: border-color 0.15s, box-shadow 0.15s;
     }
-    .incident-card:hover { border-color: #475569; }
-    .incident-card.open { border-color: #3b82f6; }
+    .incident-card:hover { border-color: #94a3b8; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+    .incident-card.open { border-color: #3b82f6; box-shadow: 0 2px 12px rgba(59,130,246,0.1); }
 
     .incident-header {
       padding: 14px 20px;
@@ -119,14 +119,14 @@
     .incident-resource {
       font-size: 14px;
       font-weight: 600;
-      color: #f1f5f9;
+      color: #0f172a;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
     .incident-sub {
       font-size: 11px;
-      color: #64748b;
+      color: #94a3b8;
       margin-top: 2px;
     }
 
@@ -138,12 +138,12 @@
       white-space: nowrap;
       flex-shrink: 0;
     }
-    .reason-OOMKilled        { background: #450a0a; color: #fca5a5; border: 1px solid #ef4444; }
-    .reason-CrashLoopBackOff { background: #431407; color: #fb923c; border: 1px solid #f97316; }
-    .reason-BackOff          { background: #422006; color: #fbbf24; border: 1px solid #f59e0b; }
-    .reason-Failed           { background: #1c1917; color: #a8a29e; border: 1px solid #78716c; }
-    .reason-Evicted          { background: #172554; color: #93c5fd; border: 1px solid #3b82f6; }
-    .reason-default          { background: #1e293b; color: #94a3b8; border: 1px solid #475569; }
+    .reason-OOMKilled        { background: #fef2f2; color: #dc2626; border: 1px solid #fca5a5; }
+    .reason-CrashLoopBackOff { background: #fff7ed; color: #ea580c; border: 1px solid #fdba74; }
+    .reason-BackOff          { background: #fefce8; color: #ca8a04; border: 1px solid #fde047; }
+    .reason-Failed           { background: #f8fafc; color: #64748b; border: 1px solid #cbd5e1; }
+    .reason-Evicted          { background: #eff6ff; color: #2563eb; border: 1px solid #93c5fd; }
+    .reason-default          { background: #f8fafc; color: #64748b; border: 1px solid #cbd5e1; }
 
     .status-badge {
       padding: 3px 10px;
@@ -153,18 +153,18 @@
       white-space: nowrap;
       flex-shrink: 0;
     }
-    .status-analyzing  { background: #451a03; color: #fcd34d; border: 1px solid #f59e0b; }
-    .status-analyzed   { background: #052e16; color: #86efac; border: 1px solid #22c55e; }
-    .status-fix_pending { background: #431407; color: #fdba74; border: 1px solid #f97316; }
-    .status-fix_applied { background: #083344; color: #67e8f9; border: 1px solid #06b6d4; }
+    .status-analyzing  { background: #fefce8; color: #a16207; border: 1px solid #fde047; }
+    .status-analyzed   { background: #f0fdf4; color: #16a34a; border: 1px solid #86efac; }
+    .status-fix_pending { background: #fff7ed; color: #c2410c; border: 1px solid #fdba74; }
+    .status-fix_applied { background: #ecfeff; color: #0e7490; border: 1px solid #67e8f9; }
 
-    .chevron { color: #475569; font-size: 12px; transition: transform 0.2s; flex-shrink: 0; }
+    .chevron { color: #94a3b8; font-size: 12px; transition: transform 0.2s; flex-shrink: 0; }
     .open .chevron { transform: rotate(180deg); }
 
     .incident-body {
       display: none;
       padding: 0 20px 18px;
-      border-top: 1px solid #334155;
+      border-top: 1px solid #e2e8f0;
     }
     .incident-card.open .incident-body { display: block; }
 
@@ -177,8 +177,8 @@
     @media (max-width: 800px) { .analysis-grid { grid-template-columns: 1fr; } }
 
     .analysis-section {
-      background: #0f172a;
-      border: 1px solid #334155;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
       border-radius: 8px;
       padding: 12px 14px;
     }
@@ -187,12 +187,12 @@
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.08em;
-      color: #475569;
+      color: #94a3b8;
       margin-bottom: 8px;
     }
     .analysis-section p, .analysis-section li {
       font-size: 13px;
-      color: #cbd5e1;
+      color: #334155;
       line-height: 1.5;
     }
     .analysis-section ul { padding-left: 18px; }
@@ -200,8 +200,8 @@
 
     .fix-command {
       grid-column: 1 / -1;
-      background: #020617;
-      border: 1px solid #334155;
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
       border-radius: 8px;
       padding: 12px 14px;
     }
@@ -210,13 +210,13 @@
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.08em;
-      color: #475569;
+      color: #94a3b8;
       margin-bottom: 8px;
     }
     .fix-command code {
       font-family: 'JetBrains Mono', 'Fira Code', monospace;
       font-size: 12px;
-      color: #86efac;
+      color: #15803d;
       word-break: break-all;
     }
 
@@ -236,10 +236,10 @@
     }
     .approve-btn:enabled:hover { background: #6d28d9; }
     .approve-btn:disabled {
-      background: #1e293b;
-      color: #475569;
+      background: #f1f5f9;
+      color: #94a3b8;
       cursor: not-allowed;
-      border: 1px solid #334155;
+      border: 1px solid #e2e8f0;
     }
 
     .message-box {
@@ -248,14 +248,14 @@
       border-radius: 6px;
       font-size: 12px;
     }
-    .message-box.error { background: #450a0a; color: #fca5a5; }
-    .message-box.info  { background: #052e16; color: #86efac; }
-    .no-analysis { font-size: 12px; color: #64748b; margin-top: 14px; font-style: italic; }
+    .message-box.error { background: #fef2f2; color: #dc2626; border: 1px solid #fca5a5; }
+    .message-box.info  { background: #f0fdf4; color: #16a34a; border: 1px solid #86efac; }
+    .no-analysis { font-size: 12px; color: #94a3b8; margin-top: 14px; font-style: italic; }
 
     .empty-state {
       text-align: center;
       padding: 80px 20px;
-      color: #475569;
+      color: #94a3b8;
     }
     .empty-state h3 { font-size: 16px; margin-bottom: 8px; color: #64748b; }
     .empty-state p  { font-size: 13px; }
@@ -263,7 +263,7 @@
     .spinner {
       display: inline-block;
       width: 14px; height: 14px;
-      border: 2px solid #334155;
+      border: 2px solid #e2e8f0;
       border-top-color: #3b82f6;
       border-radius: 50%;
       animation: spin 0.7s linear infinite;
@@ -386,7 +386,7 @@ function renderIncident(inc, isOpen) {
           </div>` : ''}
         </div>
       ` : `<p class="no-analysis">${inc.status === 'analyzing' ? '<span class="spinner"></span> Agent is analysing this incident…' : 'No analysis available.'}</p>`}
-      <div style="margin-top:12px;font-size:11px;color:#475569">
+      <div style="margin-top:12px;font-size:11px;color:#94a3b8">
         <strong>Message:</strong> ${esc(inc.event_message)}
       </div>
     </div>
