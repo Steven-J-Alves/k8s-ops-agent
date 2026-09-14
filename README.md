@@ -134,6 +134,10 @@ Open **http://localhost:8000** after starting the stack.
 - Filter by status, auto-refresh every 30 seconds
 - In autonomous mode: **Approve & Execute Fix** button per incident
 
+![Dashboard — incident list](dashboard.png)
+
+![Dashboard — analysis card expanded](dashboard2.png)
+
 ---
 
 ## API endpoints
