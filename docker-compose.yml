@@ -24,7 +24,9 @@ services:
     environment:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/k8sops
     volumes:
-      - ${HOME}/.kube:/home/appuser/.kube:ro
+      - ${KUBECONFIG_DIR:-${HOME}/.kube}:/home/appuser/.kube:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
       interval: 10s
