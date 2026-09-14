@@ -12,10 +12,11 @@ Kubernetes clusters produce a constant stream of events. When a pod crashes, get
 
 `k8s-ops-agent` automates this loop:
 
-1. **Collector** — background thread polls the cluster every 60 seconds, filters `Warning` events (OOMKilled, CrashLoopBackOff, BackOff, Failed, Evicted), deduplicates by `resource_version`
+1. **Collector** — background thread polls the cluster every 30–60 seconds, filters `Warning` events (OOMKilled, CrashLoopBackOff, BackOff, Failed, Evicted), deduplicates by `resource_version`
 2. **Agent** — LangChain ReAct agent (Claude) runs `get_pod_logs → describe_pod → list_events → get_node_status` in a Thought/Action/Observation loop
 3. **Storage** — structured analysis saved to PostgreSQL (probable cause, evidence, affected resources, fix command)
-4. **API** — FastAPI serves incident reports; in autonomous mode, `POST /incidents/{id}/approve` executes the fix
+4. **Dashboard** — light-theme web UI at `/` lists incidents in real time with status badges and expandable analysis cards
+5. **API** — FastAPI serves incident reports; in autonomous mode, `POST /incidents/{id}/approve` executes the fix
 
 ---
 
@@ -35,13 +36,15 @@ ReAct Agent (LangChain + Claude)
     ├── get_pod_logs
     ├── describe_pod
     ├── list_events
-    └── get_node_status
+    └── get_node_status (all read-only)
     │
     ▼
 Analysis → PostgreSQL
     │
-    ├── GET /incidents/{id}      ← assisted mode
-    └── POST /incidents/{id}/approve ← autonomous mode
+    ├── GET /            ← Dashboard UI (auto-refresh 30s)
+    ├── GET /incidents   ← list + filter
+    ├── GET /incidents/{id}      ← detail + analysis
+    └── POST /incidents/{id}/approve ← execute fix (autonomous only)
 ```
 
 ---
@@ -51,8 +54,9 @@ Analysis → PostgreSQL
 | Component | Library |
 |---|---|
 | API | FastAPI + Uvicorn |
+| UI | Vanilla HTML/JS served by FastAPI StaticFiles |
 | AI agent | LangChain + langchain-anthropic |
-| LLM | Claude (Haiku by default) |
+| LLM | Claude Haiku (configurable) |
 | Kubernetes | `kubernetes` Python client |
 | ORM | SQLAlchemy 2 |
 | Database | PostgreSQL |
@@ -60,7 +64,33 @@ Analysis → PostgreSQL
 
 ---
 
+## Project structure
+
+```
+k8s-ops-agent/
+├── main.py           # FastAPI app + lifespan + UI route
+├── collector.py      # K8s event poller — background thread
+├── agent.py          # LangChain ReAct agent + analysis parser
+├── k8s_tools.py      # Agent tools: logs, describe, events, nodes
+├── database.py       # SQLAlchemy engine + session factory
+├── models.py         # ORM model (Incident) + Pydantic schemas
+├── static/
+│   └── index.html    # Dashboard UI (light theme, auto-refresh)
+├── k8s-test/
+│   └── crashloop-pod.yaml  # Test workloads for local kind cluster
+├── dev-setup.sh      # One-shot local env: kind + test pods + compose
+├── Dockerfile
+├── docker-compose.yml
+├── .env.example
+├── requirements.txt
+└── SPEC.md
+```
+
+---
+
 ## Quick start
+
+### Option A — with a real cluster
 
 ```bash
 # 1. Copy and fill in your API key
@@ -70,14 +100,39 @@ cp .env.example .env
 # 2. Start the app + PostgreSQL
 docker compose up --build
 
-# 3. Check health
-curl http://localhost:8000/health
-
-# 4. List incidents
-curl http://localhost:8000/incidents
+# 3. Open the dashboard
+open http://localhost:8000
 ```
 
-The agent connects to your local `~/.kube/config` by default. Inside a cluster it auto-detects the in-cluster service account.
+The agent connects to your local `~/.kube/config` by default. Inside a cluster it uses the in-cluster service account automatically.
+
+### Option B — local kind cluster (no real cluster needed)
+
+```bash
+cp .env.example .env
+# edit .env — set ANTHROPIC_API_KEY
+
+# Creates kind cluster, deploys crashy test pods, starts docker compose
+KUBECONFIG_DIR=~/.kube-kind ./dev-setup.sh
+```
+
+`dev-setup.sh` provisions three pods that fail intentionally:
+- `api-server-crashloop` — exits with code 1 (database connection refused)
+- `worker-oomkilled` — OOMKilled by a 4Mi memory limit
+- `frontend-bad-image` — ImagePullBackOff from a non-existent registry
+
+The collector picks them up within one poll cycle and the agent analyses each.
+
+---
+
+## Dashboard
+
+Open **http://localhost:8000** after starting the stack.
+
+- Incident cards with status badges (analyzing / analyzed / fix_pending / fix_applied)
+- Expandable analysis: probable cause, evidence, affected resources, suggested fix command
+- Filter by status, auto-refresh every 30 seconds
+- In autonomous mode: **Approve & Execute Fix** button per incident
 
 ---
 
@@ -85,8 +140,9 @@ The agent connects to your local `~/.kube/config` by default. Inside a cluster i
 
 | Method | Path | Description |
 |---|---|---|
-| `GET` | `/health` | Health check |
-| `GET` | `/incidents` | List incidents (filter: `?namespace=&status=`) |
+| `GET` | `/` | Dashboard UI |
+| `GET` | `/health` | Health check + current mode |
+| `GET` | `/incidents` | List incidents (`?namespace=&status=`) |
 | `GET` | `/incidents/{id}` | Incident detail + AI analysis |
 | `POST` | `/incidents/{id}/approve` | Execute fix (autonomous mode only) |
 
@@ -96,19 +152,22 @@ The agent connects to your local `~/.kube/config` by default. Inside a cluster i
 {
   "id": 1,
   "namespace": "production",
-  "resource": "api-server-7d9f8b-xkz4p",
-  "event_reason": "OOMKilled",
-  "event_message": "Container api was OOM killed",
+  "resource": "api-server-crashloop",
+  "event_reason": "BackOff",
+  "event_message": "Back-off restarting failed container api in pod ...",
   "status": "analyzed",
   "analysis": {
-    "probable_cause": "Container exceeded its memory limit due to unbounded in-memory cache growth",
+    "probable_cause": "The api-server container cannot connect to its database dependency, causing repeated crash loop restarts.",
     "evidence": [
-      "Exit code 137 (SIGKILL)",
-      "Restart count: 8",
-      "Memory request: 256Mi, limit: 512Mi"
+      "Container restart count: 8 with CrashLoopBackOff status",
+      "Pod logs show fatal error: 'database connection refused'",
+      "ContainersReady condition is False"
     ],
-    "affected_resources": ["api-server-7d9f8b-xkz4p"],
-    "fix_command": "kubectl set resources deployment/api-server -c=api --limits=memory=1Gi -n production"
+    "affected_resources": [
+      "api-server-crashloop pod (production namespace)",
+      "Database service dependency (unreachable)"
+    ],
+    "fix_command": null
   },
   "created_at": "2024-11-01T14:23:00Z"
 }
@@ -122,8 +181,11 @@ The agent connects to your local `~/.kube/config` by default. Inside a cluster i
 |---|---|---|
 | Analyses incident | ✓ | ✓ |
 | Suggests fix command | ✓ | ✓ |
-| Executes fix | ✗ | On `POST /approve` |
+| Executes fix automatically | ✗ | ✗ |
+| Approve & Execute button | disabled | **enabled** |
 | Config | `AGENT_MODE=assisted` | `AGENT_MODE=autonomous` |
+
+In autonomous mode the fix only runs when a human clicks **Approve & Execute Fix** in the UI or calls `POST /incidents/{id}/approve`. Nothing executes without explicit approval.
 
 ---
 
@@ -136,7 +198,7 @@ The agent connects to your local `~/.kube/config` by default. Inside a cluster i
 | `DATABASE_URL` | `postgresql://postgres:postgres@postgres:5432/k8sops` | PostgreSQL connection |
 | `AGENT_MODE` | `assisted` | `assisted` or `autonomous` |
 | `POLL_INTERVAL_SECONDS` | `60` | Event polling interval |
-| `COLLECTOR_ENABLED` | `true` | Disable for API-only mode |
+| `COLLECTOR_ENABLED` | `true` | Set to `false` for API-only mode |
 
 ---
 

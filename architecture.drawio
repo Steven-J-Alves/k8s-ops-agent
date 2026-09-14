@@ -190,6 +190,37 @@
                         </Array>
                     </mxGeometry>
                 </mxCell>
+
+                <!-- DASHBOARD UI -->
+                <mxCell id="browser" value="&lt;b&gt;Dashboard UI&lt;/b&gt;&#xa;static/index.html&#xa;&#xa;Incident list · Status badges&#xa;Analysis cards · Approve button&#xa;Auto-refresh every 30s" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;verticalAlign=top;" parent="1" vertex="1">
+                    <mxGeometry x="410" y="810" width="220" height="120" as="geometry"/>
+                </mxCell>
+
+                <!-- GET / → Dashboard -->
+                <mxCell id="e-fastapi-ui" value="GET /" style="edgeStyle=orthogonalEdgeStyle;rounded=0;" parent="1" source="fastapi-bg" target="browser" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1135" y="870"/>
+                            <mxPoint x="520" y="870"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+
+                <!-- Browser → approve endpoint -->
+                <mxCell id="e-browser-approve" value="POST /approve&#xa;(on click)" style="edgeStyle=orthogonalEdgeStyle;dashed=1;dashPattern=8 4;rounded=0;" parent="1" source="browser" target="endpoint-approve" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="630" y="955"/>
+                            <mxPoint x="1222" y="955"/>
+                            <mxPoint x="1222" y="288"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+
+                <!-- Legend entry for UI -->
+                <mxCell id="leg-ui" value="Dashboard UI" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;" parent="1" vertex="1">
+                    <mxGeometry x="1400" y="235" width="150" height="26" as="geometry"/>
+                </mxCell>
             </root>
         </mxGraphModel>
     </diagram>
