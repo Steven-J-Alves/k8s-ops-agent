@@ -43,20 +43,27 @@ message: {message}
 
 
 def _parse_analysis(raw: str) -> dict:
+    segment = raw
     if "=== ANALYSIS ===" in raw:
-        json_str = raw.split("=== ANALYSIS ===")[1].strip()
-        # strip markdown code fences if present
-        if json_str.startswith("```"):
-            json_str = json_str.split("```")[1]
-            if json_str.startswith("json"):
-                json_str = json_str[4:]
+        segment = raw.split("=== ANALYSIS ===")[1].strip()
+
+    # strip markdown code fences if present
+    if segment.startswith("```"):
+        segment = segment.split("```")[1]
+        if segment.startswith("json"):
+            segment = segment[4:]
+
+    # extract the JSON object — ignore any trailing markdown text
+    start = segment.find("{")
+    end = segment.rfind("}") + 1
+    if start != -1 and end > start:
         try:
-            return json.loads(json_str.strip())
+            return json.loads(segment[start:end])
         except json.JSONDecodeError:
             pass
 
     return {
-        "probable_cause": raw[:300],
+        "probable_cause": segment[:300],
         "evidence": [],
         "affected_resources": [],
         "fix_command": None,
