@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>k8s-ops-agent</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      min-height: 100vh;
+    }
+
+    header {
+      background: #1e293b;
+      border-bottom: 1px solid #334155;
+      padding: 16px 32px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    header h1 { font-size: 18px; font-weight: 700; color: #f1f5f9; }
+    header span { font-size: 12px; color: #64748b; }
+
+    .badge-mode {
+      margin-left: auto;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+    }
+    .badge-mode.assisted { background: #1e3a5f; color: #60a5fa; border: 1px solid #3b82f6; }
+    .badge-mode.autonomous { background: #3b0764; color: #c084fc; border: 1px solid #9333ea; }
+
+    .toolbar {
+      padding: 20px 32px 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .filter-btn {
+      padding: 5px 14px;
+      border-radius: 9999px;
+      border: 1px solid #334155;
+      background: transparent;
+      color: #94a3b8;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .filter-btn:hover, .filter-btn.active {
+      background: #1e293b;
+      color: #f1f5f9;
+      border-color: #475569;
+    }
+    .filter-btn.active { border-color: #3b82f6; color: #60a5fa; }
+
+    .refresh-info {
+      margin-left: auto;
+      font-size: 11px;
+      color: #475569;
+    }
+
+    .incidents {
+      padding: 0 32px 40px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .incident-card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 10px;
+      overflow: hidden;
+      transition: border-color 0.15s;
+    }
+    .incident-card:hover { border-color: #475569; }
+    .incident-card.open { border-color: #3b82f6; }
+
+    .incident-header {
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .status-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .status-dot.analyzing { background: #f59e0b; box-shadow: 0 0 6px #f59e0b; animation: pulse 1.2s infinite; }
+    .status-dot.analyzed  { background: #22c55e; }
+    .status-dot.fix_pending { background: #f97316; box-shadow: 0 0 6px #f97316; animation: pulse 1.2s infinite; }
+    .status-dot.fix_applied { background: #06b6d4; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .incident-meta {
+      flex: 1;
+      min-width: 0;
+    }
+    .incident-resource {
+      font-size: 14px;
+      font-weight: 600;
+      color: #f1f5f9;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .incident-sub {
+      font-size: 11px;
+      color: #64748b;
+      margin-top: 2px;
+    }
+
+    .reason-badge {
+      padding: 3px 10px;
+      border-radius: 9999px;
+      font-size: 11px;
+      font-weight: 600;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .reason-OOMKilled        { background: #450a0a; color: #fca5a5; border: 1px solid #ef4444; }
+    .reason-CrashLoopBackOff { background: #431407; color: #fb923c; border: 1px solid #f97316; }
+    .reason-BackOff          { background: #422006; color: #fbbf24; border: 1px solid #f59e0b; }
+    .reason-Failed           { background: #1c1917; color: #a8a29e; border: 1px solid #78716c; }
+    .reason-Evicted          { background: #172554; color: #93c5fd; border: 1px solid #3b82f6; }
+    .reason-default          { background: #1e293b; color: #94a3b8; border: 1px solid #475569; }
+
+    .status-badge {
+      padding: 3px 10px;
+      border-radius: 9999px;
+      font-size: 11px;
+      font-weight: 600;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .status-analyzing  { background: #451a03; color: #fcd34d; border: 1px solid #f59e0b; }
+    .status-analyzed   { background: #052e16; color: #86efac; border: 1px solid #22c55e; }
+    .status-fix_pending { background: #431407; color: #fdba74; border: 1px solid #f97316; }
+    .status-fix_applied { background: #083344; color: #67e8f9; border: 1px solid #06b6d4; }
+
+    .chevron { color: #475569; font-size: 12px; transition: transform 0.2s; flex-shrink: 0; }
+    .open .chevron { transform: rotate(180deg); }
+
+    .incident-body {
+      display: none;
+      padding: 0 20px 18px;
+      border-top: 1px solid #334155;
+    }
+    .incident-card.open .incident-body { display: block; }
+
+    .analysis-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-top: 14px;
+    }
+    @media (max-width: 800px) { .analysis-grid { grid-template-columns: 1fr; } }
+
+    .analysis-section {
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 12px 14px;
+    }
+    .analysis-section h4 {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #475569;
+      margin-bottom: 8px;
+    }
+    .analysis-section p, .analysis-section li {
+      font-size: 13px;
+      color: #cbd5e1;
+      line-height: 1.5;
+    }
+    .analysis-section ul { padding-left: 18px; }
+    .analysis-section li { margin-bottom: 4px; }
+
+    .fix-command {
+      grid-column: 1 / -1;
+      background: #020617;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 12px 14px;
+    }
+    .fix-command h4 {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #475569;
+      margin-bottom: 8px;
+    }
+    .fix-command code {
+      font-family: 'JetBrains Mono', 'Fira Code', monospace;
+      font-size: 12px;
+      color: #86efac;
+      word-break: break-all;
+    }
+
+    .approve-btn {
+      margin-top: 12px;
+      padding: 8px 20px;
+      border-radius: 8px;
+      border: none;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .approve-btn:enabled {
+      background: #7c3aed;
+      color: #fff;
+    }
+    .approve-btn:enabled:hover { background: #6d28d9; }
+    .approve-btn:disabled {
+      background: #1e293b;
+      color: #475569;
+      cursor: not-allowed;
+      border: 1px solid #334155;
+    }
+
+    .message-box {
+      margin-top: 8px;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+    }
+    .message-box.error { background: #450a0a; color: #fca5a5; }
+    .message-box.info  { background: #052e16; color: #86efac; }
+    .no-analysis { font-size: 12px; color: #64748b; margin-top: 14px; font-style: italic; }
+
+    .empty-state {
+      text-align: center;
+      padding: 80px 20px;
+      color: #475569;
+    }
+    .empty-state h3 { font-size: 16px; margin-bottom: 8px; color: #64748b; }
+    .empty-state p  { font-size: 13px; }
+
+    .spinner {
+      display: inline-block;
+      width: 14px; height: 14px;
+      border: 2px solid #334155;
+      border-top-color: #3b82f6;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<header>
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2">
+    <circle cx="12" cy="12" r="10"/>
+    <circle cx="12" cy="12" r="4"/>
+    <line x1="4.93" y1="4.93" x2="9.17" y2="9.17"/>
+    <line x1="14.83" y1="14.83" x2="19.07" y2="19.07"/>
+    <line x1="14.83" y1="9.17" x2="19.07" y2="4.93"/>
+    <line x1="4.93" y1="19.07" x2="9.17" y2="14.83"/>
+  </svg>
+  <h1>k8s-ops-agent</h1>
+  <span id="incident-count">—</span>
+  <span id="mode-badge" class="badge-mode assisted">ASSISTED</span>
+</header>
+
+<div class="toolbar">
+  <button class="filter-btn active" data-filter="all">All</button>
+  <button class="filter-btn" data-filter="analyzing">Analyzing</button>
+  <button class="filter-btn" data-filter="analyzed">Analyzed</button>
+  <button class="filter-btn" data-filter="fix_pending">Fix Pending</button>
+  <button class="filter-btn" data-filter="fix_applied">Fix Applied</button>
+  <span class="refresh-info" id="refresh-info">Auto-refresh: 30s</span>
+</div>
+
+<div class="incidents" id="incidents-container">
+  <div class="empty-state">
+    <span class="spinner"></span> Loading incidents…
+  </div>
+</div>
+
+<script>
+const API = '';  // same origin
+let currentFilter = 'all';
+let agentMode = 'assisted';
+let refreshTimer = null;
+let incidents = [];
+
+async function fetchIncidents() {
+  const url = currentFilter === 'all' ? '/incidents' : `/incidents?status=${currentFilter}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+async function approveIncident(id) {
+  const res = await fetch(`/incidents/${id}/approve`, { method: 'POST' });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.detail || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+function reasonClass(reason) {
+  const known = ['OOMKilled','CrashLoopBackOff','BackOff','Failed','Evicted'];
+  return known.includes(reason) ? `reason-${reason}` : 'reason-default';
+}
+
+function timeAgo(iso) {
+  const secs = Math.floor((Date.now() - new Date(iso)) / 1000);
+  if (secs < 60)  return `${secs}s ago`;
+  if (secs < 3600) return `${Math.floor(secs/60)}m ago`;
+  if (secs < 86400) return `${Math.floor(secs/3600)}h ago`;
+  return `${Math.floor(secs/86400)}d ago`;
+}
+
+function renderIncident(inc, isOpen) {
+  const a = inc.analysis || {};
+  const hasAnalysis = !!a.probable_cause;
+  const isAutonomous = agentMode === 'autonomous';
+  const canApprove = isAutonomous && inc.status === 'analyzed' && a.fix_command;
+
+  return `
+  <div class="incident-card ${isOpen ? 'open' : ''}" id="card-${inc.id}" data-id="${inc.id}">
+    <div class="incident-header" onclick="toggleCard(${inc.id})">
+      <div class="status-dot ${inc.status}"></div>
+      <div class="incident-meta">
+        <div class="incident-resource">${esc(inc.resource)}</div>
+        <div class="incident-sub">${esc(inc.namespace)} · ${timeAgo(inc.created_at)} · #${inc.id}</div>
+      </div>
+      <span class="reason-badge ${reasonClass(inc.event_reason)}">${esc(inc.event_reason)}</span>
+      <span class="status-badge status-${inc.status}">${inc.status.replace('_', ' ')}</span>
+      <span class="chevron">▼</span>
+    </div>
+    <div class="incident-body">
+      ${hasAnalysis ? `
+        <div class="analysis-grid">
+          <div class="analysis-section" style="grid-column:1/-1">
+            <h4>Probable Cause</h4>
+            <p>${esc(a.probable_cause)}</p>
+          </div>
+          <div class="analysis-section">
+            <h4>Evidence</h4>
+            <ul>${(a.evidence || []).map(e => `<li>${esc(e)}</li>`).join('')}</ul>
+          </div>
+          <div class="analysis-section">
+            <h4>Affected Resources</h4>
+            <ul>${(a.affected_resources || []).map(r => `<li>${esc(r)}</li>`).join('')}</ul>
+          </div>
+          ${a.fix_command ? `
+          <div class="fix-command">
+            <h4>Suggested Fix Command</h4>
+            <code>${esc(a.fix_command)}</code>
+            <br/>
+            <button class="approve-btn" ${canApprove ? '' : 'disabled'}
+              onclick="handleApprove(event, ${inc.id})">
+              ${isAutonomous ? (inc.status === 'analyzed' ? 'Approve &amp; Execute Fix' : 'Fix ' + inc.status) : 'Autonomous mode disabled'}
+            </button>
+            <div id="msg-${inc.id}"></div>
+          </div>` : ''}
+        </div>
+      ` : `<p class="no-analysis">${inc.status === 'analyzing' ? '<span class="spinner"></span> Agent is analysing this incident…' : 'No analysis available.'}</p>`}
+      <div style="margin-top:12px;font-size:11px;color:#475569">
+        <strong>Message:</strong> ${esc(inc.event_message)}
+      </div>
+    </div>
+  </div>`;
+}
+
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+let openCards = new Set();
+
+function toggleCard(id) {
+  const card = document.getElementById(`card-${id}`);
+  if (openCards.has(id)) { openCards.delete(id); card.classList.remove('open'); }
+  else { openCards.add(id); card.classList.add('open'); }
+}
+
+async function handleApprove(e, id) {
+  e.stopPropagation();
+  const btn = e.target;
+  const msgEl = document.getElementById(`msg-${id}`);
+  btn.disabled = true;
+  btn.textContent = 'Executing…';
+  msgEl.innerHTML = '';
+  try {
+    await approveIncident(id);
+    msgEl.innerHTML = '<div class="message-box info">Fix applied successfully.</div>';
+    await loadIncidents();
+  } catch(err) {
+    msgEl.innerHTML = `<div class="message-box error">${esc(err.message)}</div>`;
+    btn.disabled = false;
+    btn.textContent = 'Approve & Execute Fix';
+  }
+}
+
+async function loadIncidents() {
+  try {
+    incidents = await fetchIncidents();
+    document.getElementById('incident-count').textContent = `${incidents.length} incident${incidents.length !== 1 ? 's' : ''}`;
+    const container = document.getElementById('incidents-container');
+    if (incidents.length === 0) {
+      container.innerHTML = `<div class="empty-state">
+        <h3>No incidents found</h3>
+        <p>The collector is watching for OOMKilled and CrashLoopBackOff events.</p>
+      </div>`;
+      return;
+    }
+    container.innerHTML = incidents.map(inc => renderIncident(inc, openCards.has(inc.id))).join('');
+    document.getElementById('refresh-info').textContent = `Refreshed: ${new Date().toLocaleTimeString()}`;
+  } catch(err) {
+    console.error('Failed to load incidents:', err);
+  }
+}
+
+// filter buttons
+document.querySelectorAll('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentFilter = btn.dataset.filter;
+    loadIncidents();
+  });
+});
+
+// detect mode from health or env — we'll just check AGENT_MODE via a meta tag injected by FastAPI
+const modeEl = document.getElementById('mode-badge');
+
+async function detectMode() {
+  try {
+    const res = await fetch('/health');
+    const data = await res.json();
+    if (data.mode) {
+      agentMode = data.mode;
+      modeEl.textContent = data.mode.toUpperCase();
+      modeEl.className = `badge-mode ${data.mode}`;
+    }
+  } catch(_) {}
+}
+
+detectMode();
+loadIncidents();
+
+// auto-refresh every 30s
+refreshTimer = setInterval(loadIncidents, 30000);
+</script>
+</body>
+</html>

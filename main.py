@@ -3,12 +3,14 @@ import os
 import subprocess
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Optional
 
 from fastapi import Depends, FastAPI, HTTPException
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 
-from agent import analyze_incident
 from collector import start_collector
 from database import create_tables, get_db
 from models import Incident, IncidentResponse
@@ -26,10 +28,19 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="k8s-ops-agent", version="1.0.0", lifespan=lifespan)
 
+_STATIC = Path(__file__).parent / "static"
+if _STATIC.exists():
+    app.mount("/static", StaticFiles(directory=str(_STATIC)), name="static")
+
+
+@app.get("/", include_in_schema=False)
+def ui():
+    return FileResponse(str(_STATIC / "index.html"))
+
 
 @app.get("/health")
 def health():
-    return {"status": "ok"}
+    return {"status": "ok", "mode": os.getenv("AGENT_MODE", "assisted")}
 
 
 @app.get("/incidents", response_model=list[IncidentResponse])
