@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+langchain
+langchain-anthropic
+kubernetes
+sqlalchemy
+psycopg2-binary
+pydantic
+python-dotenv
